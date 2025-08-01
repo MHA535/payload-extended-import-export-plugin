@@ -1,6 +1,6 @@
 {
   "name": "payload-extended-import-export-plugin",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "This is an extended version of the Payload CMS import-export plugin, providing additional features and enhancements.",
   "license": "MIT",
   "author": "saroroce",
