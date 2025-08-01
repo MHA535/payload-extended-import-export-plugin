@@ -1,1 +1,1 @@
-export { payloadExtendedImportExportPlugin } from 'src/index.js'
+export { payloadExtendedImportExportPlugin } from '../index.js'

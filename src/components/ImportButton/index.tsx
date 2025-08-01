@@ -8,7 +8,7 @@ import React from 'react'
 import { extractCollectionFields } from '../../utils/collection-fields.js'
 import ImportButton from './ImportButton.js'
 
-export default async (req: {
+const ImportButtonServer = async (req: {
   collectionConfig: Collection['config']
   i18n: I18nServer
   payload: Payload
@@ -29,3 +29,5 @@ export default async (req: {
     />
   )
 }
+
+export default ImportButtonServer

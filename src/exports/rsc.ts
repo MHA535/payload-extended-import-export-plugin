@@ -1,1 +1,1 @@
-export { default as ImportButton } from '../components/ImportButton/index.js'
+export { default as ImportButtonServer } from '../components/ImportButton/index.js'
