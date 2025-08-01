@@ -1,4 +1,4 @@
-import type { Endpoint, PayloadRequest } from 'payload'
+import type { Endpoint, PayloadRequest, RelationshipField } from 'payload'
 
 // Функция для конвертации строки в формат Lexical richText
 function convertStringToLexicalFormat(text: string) {
@@ -100,7 +100,9 @@ export const importEndpoint: Endpoint = {
 
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
+          if (done) {
+            break
+          }
           bodyText += decoder.decode(value, { stream: true })
         }
 
@@ -147,7 +149,9 @@ export const importEndpoint: Endpoint = {
             if (collectionConfig) {
               const mapFieldTypes = (fields: any[], prefix = '') => {
                 fields.forEach((field) => {
-                  if (!field.name) return
+                  if (!field.name) {
+                    return
+                  }
                   const fieldName = prefix ? `${prefix}.${field.name}` : field.name
                   fieldTypeMap.set(fieldName, field.type)
 
@@ -172,9 +176,29 @@ export const importEndpoint: Endpoint = {
                 if (fieldType === 'richText') {
                   value = convertStringToLexicalFormat(value)
                 }
-                // Для relationship полей, если передается строка, оставляем как есть
-                // Payload сам попытается найти связанную запись
-                else if (collectionField === 'categories' && typeof value === 'string') {
+
+                if (fieldType === 'relationship') {
+                  const isMultiple = collectionConfig?.fields?.find((_field) => {
+                    const field = _field as unknown as RelationshipField
+                    return field?.name === collectionField && field.relationTo && field.hasMany
+                  })
+
+                  if (isMultiple) {
+                    // Для множественных связей ожидаем массив значений
+                    const items =
+                      typeof value === 'string' ? value.split(',').map((v) => v.trim()) : value
+                    value = items.map((item: any) => {
+                      return {
+                        id: item, // Предполагаем, что это ID связанной записи
+                      }
+                    })
+                  } else {
+                    // Для одиночных связей ожидаем объект с ID
+                    value = {
+                      id: value, // Предполагаем, что это ID связанной записи
+                    }
+                  }
+                } else if (collectionField === 'categories' && typeof value === 'string') {
                   // Для categories можем попробовать найти по slug или создать
                   value = value.split(',').map((cat: string) => cat.trim())
                 }
@@ -188,7 +212,9 @@ export const importEndpoint: Endpoint = {
               // Обрабатываем все поля коллекции
               const processFields = (fields: any[], prefix = '') => {
                 fields.forEach((field) => {
-                  if (!field.name) return
+                  if (!field.name) {
+                    return
+                  }
 
                   const fieldName = prefix ? `${prefix}.${field.name}` : field.name
 
@@ -233,7 +259,9 @@ export const importEndpoint: Endpoint = {
 
       // Обработка данных согласно выбранному режиму
       for (const item of mappedData) {
-        if (!item) continue
+        if (!item) {
+          continue
+        }
 
         try {
           if (mode === 'create') {
