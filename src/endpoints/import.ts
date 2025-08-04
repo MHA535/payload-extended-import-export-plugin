@@ -162,15 +162,34 @@ export const importEndpoint: Endpoint = {
                 })
               }
               mapFieldTypes(collectionConfig.fields)
+
+              // Отладочная информация
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Доступные поля в схеме:', Array.from(fieldTypeMap.keys()))
+                console.log(
+                  'Маппинги полей:',
+                  fieldMappings.map((m) => `${m.csvField} -> ${m.collectionField}`),
+                )
+              }
             }
 
             fieldMappings.forEach(({ collectionField, csvField }) => {
               if (row[csvField] !== undefined && row[csvField] !== '') {
-                // Обработка специальных типов полей
-                let value = row[csvField]
-
                 // Получаем тип поля
                 const fieldType = fieldTypeMap.get(collectionField)
+
+                // Пропускаем поля, которых нет в схеме коллекции
+                if (!fieldType) {
+                  if (process.env.NODE_ENV === 'development') {
+                    console.warn(
+                      `Поле "${collectionField}" не найдено в схеме коллекции "${collection}"`,
+                    )
+                  }
+                  return
+                }
+
+                // Обработка специальных типов полей
+                let value = row[csvField]
 
                 // Обработка richText полей
                 if (fieldType === 'richText') {
@@ -198,9 +217,83 @@ export const importEndpoint: Endpoint = {
                       id: value, // Предполагаем, что это ID связанной записи
                     }
                   }
-                } else if (collectionField === 'categories' && typeof value === 'string') {
-                  // Для categories можем попробовать найти по slug или создать
-                  value = value.split(',').map((cat: string) => cat.trim())
+                }
+
+                // Обработка полей типа number
+                if (fieldType === 'number') {
+                  if (typeof value === 'string') {
+                    // Обработка специальных строковых значений
+                    if (
+                      value.toLowerCase().includes('есть') ||
+                      value.toLowerCase().includes('наличии')
+                    ) {
+                      value = 1
+                    } else if (
+                      value.toLowerCase().includes('нет') ||
+                      value.toLowerCase().includes('отсутствует')
+                    ) {
+                      value = 0
+                    } else {
+                      // Пытаемся извлечь число из строки
+                      const numValue = parseFloat(value.replace(/[^\d.,]/g, '').replace(',', '.'))
+                      value = isNaN(numValue) ? 0 : numValue
+                    }
+                  } else if (typeof value !== 'number') {
+                    value = 0
+                  }
+                }
+
+                // Обработка массивов (array fields)
+                if (fieldType === 'array') {
+                  // Для array полей обеспечиваем правильную структуру
+                  if (typeof value === 'string') {
+                    try {
+                      value = JSON.parse(value)
+                    } catch {
+                      // Если не JSON, оставляем как строку
+                    }
+                  }
+
+                  // Проверяем, что это массив
+                  if (!Array.isArray(value)) {
+                    value = []
+                  }
+
+                  // Обрабатываем каждый элемент массива
+                  if (Array.isArray(value)) {
+                    value = value.map((item, index) => {
+                      if (typeof item === 'object' && item !== null) {
+                        const processedItem = { ...item }
+
+                        // Обеспечиваем наличие id для каждого элемента
+                        if (!processedItem.id) {
+                          processedItem.id = `item_${index}_${Date.now()}`
+                        }
+
+                        // Обрабатываем все поля внутри объекта как потенциальные relationship
+                        Object.keys(processedItem).forEach((key) => {
+                          const subFieldType = fieldTypeMap.get(`${collectionField}.${key}`)
+
+                          if (subFieldType === 'relationship') {
+                            const subValue = processedItem[key]
+
+                            if (Array.isArray(subValue)) {
+                              // Для множественных связей
+                              processedItem[key] = subValue.map((val) =>
+                                typeof val === 'string' ? { id: val } : val,
+                              )
+                            } else if (typeof subValue === 'string') {
+                              // Для одиночных связей
+                              processedItem[key] = { id: subValue }
+                            }
+                          }
+                        })
+
+                        return processedItem
+                      }
+                      return item
+                    })
+                  }
                 }
 
                 mapped[collectionField] = value
@@ -371,7 +464,25 @@ export const importEndpoint: Endpoint = {
             }
           }
         } catch (error: any) {
-          errors.push(`Строка ${item.index + 1}: ${error.message || error}`)
+          // Добавляем подробную информацию об ошибке
+          let errorMessage = `Строка ${item.index + 1}: `
+
+          if (error.message) {
+            errorMessage += error.message
+          } else {
+            errorMessage += String(error)
+          }
+
+          // В development режиме добавляем отладочную информацию
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Ошибка при создании/обновлении записи:', {
+              error: error.message || error,
+              data: item.mapped,
+              collection,
+            })
+          }
+
+          errors.push(errorMessage)
         }
       }
 

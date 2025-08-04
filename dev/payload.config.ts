@@ -42,7 +42,33 @@ const buildConfigWithMemoryDB = async () => {
     collections: [
       {
         slug: 'posts',
-        fields: [],
+        fields: [
+          {
+            name: 'description',
+            type: 'text',
+            label: 'Description',
+          },
+          {
+            name: 'array',
+            type: 'array',
+            fields: [
+              {
+                name: 'attribute',
+                type: 'relationship',
+                label: 'attribute',
+                relationTo: 'posts',
+              },
+              {
+                name: 'values',
+                type: 'relationship',
+                hasMany: true,
+                label: 'Values',
+                relationTo: 'posts',
+              },
+            ],
+            label: 'Array',
+          },
+        ],
       },
       {
         slug: 'media',
@@ -63,7 +89,7 @@ const buildConfigWithMemoryDB = async () => {
     },
     plugins: [
       payloadExtendedImportExportPlugin({
-        collections: ['posts'],
+        collections: [],
       }),
     ],
     secret: process.env.PAYLOAD_SECRET || 'test-secret_key',

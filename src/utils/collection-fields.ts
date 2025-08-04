@@ -1,6 +1,6 @@
-import { Collection, Field } from 'payload'
+import type { Collection, Field } from 'payload'
 
-import { CollectionField } from '../types/import.js'
+import type { CollectionField } from '../types/import.js'
 
 /**
  * Извлекает поля из конфигурации коллекции Payload
@@ -114,8 +114,12 @@ const generateFieldExample = (field: Field): string => {
       return '{ "data": {} }'
     case 'number':
       if ('name' in field) {
-        if (field.name === 'price' || field.name === 'cost') return '1000'
-        if (field.name === 'quantity' || field.name === 'stock') return '50'
+        if (field.name === 'price' || field.name === 'cost') {
+          return '1000'
+        }
+        if (field.name === 'quantity' || field.name === 'stock') {
+          return '50'
+        }
       }
       return '123'
     case 'radio':
@@ -140,10 +144,18 @@ const generateFieldExample = (field: Field): string => {
       return 'option1'
     case 'text':
       if ('name' in field) {
-        if (field.name === 'title' || field.name === 'name') return 'Название товара'
-        if (field.name === 'slug') return 'nazvanie-tovara'
-        if (field.name === 'sku') return 'SKU-001'
-        if (field.name === 'email') return 'user@example.com'
+        if (field.name === 'title' || field.name === 'name') {
+          return 'Название товара'
+        }
+        if (field.name === 'slug') {
+          return 'nazvanie-tovara'
+        }
+        if (field.name === 'sku') {
+          return 'SKU-001'
+        }
+        if (field.name === 'email') {
+          return 'user@example.com'
+        }
       }
       return 'Текстовое значение'
 
