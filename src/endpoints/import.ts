@@ -175,11 +175,17 @@ export const importEndpoint: Endpoint = {
 
             fieldMappings.forEach(({ collectionField, csvField }) => {
               if (row[csvField] !== undefined && row[csvField] !== '') {
+                // Для поля id просто присваиваем значение без дополнительной обработки
+                if (collectionField === 'id') {
+                  mapped[collectionField] = row[csvField]
+                  return
+                }
+
                 // Получаем тип поля
                 const fieldType = fieldTypeMap.get(collectionField)
 
-                // Пропускаем поля, которых нет в схеме коллекции
-                if (!fieldType) {
+                // Пропускаем поля, которых нет в схеме коллекции (кроме id)
+                if (!fieldType && collectionField !== 'id') {
                   if (process.env.NODE_ENV === 'development') {
                     console.warn(
                       `Поле "${collectionField}" не найдено в схеме коллекции "${collection}"`,
@@ -300,8 +306,8 @@ export const importEndpoint: Endpoint = {
               }
             })
 
-            // Добавляем значения по умолчанию для обязательных полей
-            if (collectionConfig) {
+            // Добавляем значения по умолчанию для обязательных полей только при создании
+            if (collectionConfig && mode === 'create') {
               // Обрабатываем все поля коллекции
               const processFields = (fields: any[], prefix = '') => {
                 fields.forEach((field) => {
@@ -359,16 +365,20 @@ export const importEndpoint: Endpoint = {
         try {
           if (mode === 'create') {
             // Только создание новых записей
+            // Убираем поле id из данных для создания, т.к. Payload создает ID автоматически
+            const createData = { ...item.mapped }
+            delete createData.id
+
             const result = await req.payload.create({
               collection: collection as any,
-              data: item.mapped,
+              data: createData,
               locale: (locale || req.locale || 'en') as 'bg' | 'en' | 'ru' | 'uk',
             })
             created++
             details.push({
               id: result.id,
               action: 'created',
-              data: item.mapped,
+              data: createData,
             })
           } else if (mode === 'update') {
             // Только обновление существующих записей
@@ -383,18 +393,30 @@ export const importEndpoint: Endpoint = {
               collection: collection as any,
               limit: 1,
               locale: (locale || req.locale || 'en') as 'bg' | 'en' | 'ru' | 'uk',
-              where: {
-                [compareField]: {
-                  equals: item.mapped[compareField],
-                },
-              },
+              where:
+                compareField === 'id'
+                  ? {
+                      id: {
+                        equals: item.mapped[compareField],
+                      },
+                    }
+                  : {
+                      [compareField]: {
+                        equals: item.mapped[compareField],
+                      },
+                    },
             })
 
             if (existing.docs.length > 0) {
-              const result = await req.payload.update({
+              // Для обновления записей объединяем существующие данные с новыми
+              // чтобы избежать валидации обязательных полей
+              const existingData = existing.docs[0]
+              const mergedData = { ...existingData, ...item.mapped }
+
+              const _result = await req.payload.update({
                 id: existing.docs[0].id,
                 collection: collection as any,
-                data: item.mapped,
+                data: mergedData,
                 locale: (locale || req.locale || 'en') as 'bg' | 'en' | 'ru' | 'uk',
               })
               updated++
@@ -415,18 +437,29 @@ export const importEndpoint: Endpoint = {
                 collection: collection as any,
                 limit: 1,
                 locale: (locale || req.locale || 'en') as 'bg' | 'en' | 'ru' | 'uk',
-                where: {
-                  [compareField]: {
-                    equals: item.mapped[compareField],
-                  },
-                },
+                where:
+                  compareField === 'id'
+                    ? {
+                        id: {
+                          equals: item.mapped[compareField],
+                        },
+                      }
+                    : {
+                        [compareField]: {
+                          equals: item.mapped[compareField],
+                        },
+                      },
               })
 
               if (existing.docs.length > 0) {
-                const result = await req.payload.update({
+                // Для обновления записей объединяем существующие данные с новыми
+                const existingData = existing.docs[0]
+                const mergedData = { ...existingData, ...item.mapped }
+
+                const _result = await req.payload.update({
                   id: existing.docs[0].id,
                   collection: collection as any,
-                  data: item.mapped,
+                  data: mergedData,
                   locale: (locale || req.locale || 'en') as 'bg' | 'en' | 'ru' | 'uk',
                 })
                 updated++

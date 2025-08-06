@@ -1,13 +1,15 @@
 import { ArrowRight, Info, Lightbulb } from 'lucide-react'
 import React, { useEffect } from 'react'
 
-import { CollectionField, FieldMapping } from '../../types/import.js'
+import type { CollectionField, FieldMapping, ImportMode } from '../../types/import.js'
+
 import { getFieldMappingRecommendations } from '../../utils/sample-generators.js'
 
 interface FieldMappingComponentProps {
   collectionFields: CollectionField[]
   csvHeaders: string[]
   fieldMappings: FieldMapping[]
+  importMode: ImportMode
   onMappingChange: (mappings: FieldMapping[]) => void
 }
 
@@ -15,6 +17,7 @@ const FieldMappingComponent: React.FC<FieldMappingComponentProps> = ({
   collectionFields,
   csvHeaders,
   fieldMappings,
+  importMode,
   onMappingChange,
 }) => {
   // Автоматическое применение рекомендаций при первой загрузке
@@ -285,49 +288,74 @@ const FieldMappingComponent: React.FC<FieldMappingComponentProps> = ({
 
       {/* Предупреждения */}
       <div style={{ marginTop: '12px' }}>
-        {/* Несопоставленные обязательные поля */}
-        {(() => {
-          const requiredFields = collectionFields.filter((f) => f.required)
-          const mappedFieldNames = fieldMappings.map((m) => m.collectionField)
-          const unmappedRequired = requiredFields.filter((f) => !mappedFieldNames.includes(f.name))
+        {/* Несопоставленные обязательные поля - показываем только для create и upsert */}
+        {(importMode === 'create' || importMode === 'upsert') &&
+          (() => {
+            const requiredFields = collectionFields.filter((f) => f.required)
+            const mappedFieldNames = fieldMappings.map((m) => m.collectionField)
+            const unmappedRequired = requiredFields.filter(
+              (f) => !mappedFieldNames.includes(f.name),
+            )
 
-          if (unmappedRequired.length > 0) {
-            return (
-              <div
-                style={{
-                  backgroundColor: '#fff3cd',
-                  border: '1px solid #ffeaa7',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  padding: '12px',
-                }}
-              >
-                <strong>
-                  <span aria-label="alert" role="img">
-                    ⚠️
-                  </span>{' '}
-                  Внимание:
-                </strong>{' '}
-                Следующие обязательные поля не сопоставлены:{' '}
-                {unmappedRequired.map((f) => f.label || f.name).join(', ')}
-                <br />
-                <small
+            if (unmappedRequired.length > 0) {
+              return (
+                <div
                   style={{
-                    color: '#666',
-                    display: 'block',
-                    marginTop: '4px',
+                    backgroundColor: '#fff3cd',
+                    border: '1px solid #ffeaa7',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    padding: '12px',
                   }}
                 >
-                  <span aria-label="lamp" role="img">
-                    💡
-                  </span>{' '}
-                  Поля со значениями по умолчанию не требуют обязательного заполнения
-                </small>
-              </div>
-            )
-          }
-          return null
-        })()}
+                  <strong>
+                    <span aria-label="alert" role="img">
+                      ⚠️
+                    </span>{' '}
+                    Внимание:
+                  </strong>{' '}
+                  Следующие обязательные поля не сопоставлены:{' '}
+                  {unmappedRequired.map((f) => f.label || f.name).join(', ')}
+                  <br />
+                  <small
+                    style={{
+                      color: '#666',
+                      display: 'block',
+                      marginTop: '4px',
+                    }}
+                  >
+                    <span aria-label="lamp" role="img">
+                      💡
+                    </span>{' '}
+                    Поля со значениями по умолчанию не требуют обязательного заполнения
+                  </small>
+                </div>
+              )
+            }
+            return null
+          })()}
+
+        {/* Информация для режима update */}
+        {importMode === 'update' && (
+          <div
+            style={{
+              backgroundColor: '#d1ecf1',
+              border: '1px solid #bee5eb',
+              borderRadius: '4px',
+              fontSize: '14px',
+              padding: '12px',
+            }}
+          >
+            <strong>
+              <span aria-label="info" role="img">
+                ℹ️
+              </span>{' '}
+              Информация:
+            </strong>{' '}
+            При обновлении существующих записей обязательные поля не требуют повторного заполнения,
+            так как они уже существуют в базе данных.
+          </div>
+        )}
 
         {/* Несопоставленные поля из CSV */}
         {(() => {

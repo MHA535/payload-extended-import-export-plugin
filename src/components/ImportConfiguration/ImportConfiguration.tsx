@@ -1,7 +1,13 @@
 import React, { useState } from 'react'
 
-import { CollectionField, FieldMapping, ImportMode, ImportSettings } from '../../types/import.js'
-import { TableData } from '../../utils/file-parsers.js'
+import type {
+  CollectionField,
+  FieldMapping,
+  ImportMode,
+  ImportSettings,
+} from '../../types/import.js'
+import type { TableData } from '../../utils/file-parsers.js'
+
 import FieldMappingComponent from '../FieldMapping/FieldMapping.js'
 import ImportModeSelector from '../ImportModeSelector/ImportModeSelector.js'
 import LocaleSelector from '../LocaleSelector/LocaleSelector.js'
@@ -25,23 +31,40 @@ const ImportConfiguration: React.FC<ImportConfigurationProps> = ({
   const [selectedLocale, setSelectedLocale] = useState<string>('en')
 
   const canProceed = () => {
-    // Проверяем, что все обязательные поля сопоставлены
+    // Для режима update обязательные поля не требуются
+    if (importMode === 'update') {
+      // Для update требуется только поле сравнения и минимум одно сопоставление
+      const isUsingIdForComparison = compareField === 'id'
+      const hasIdMapping = fieldMappings.some((m) => m.collectionField === 'id')
+
+      return fieldMappings.length > 0 && compareField && (!isUsingIdForComparison || hasIdMapping)
+    }
+
+    // Для create и upsert проверяем обязательные поля
     const requiredFields = collectionFields.filter((f) => f.required)
     const mappedFieldNames = fieldMappings.map((m) => m.collectionField)
     const unmappedRequired = requiredFields.filter((f) => !mappedFieldNames.includes(f.name))
 
-    // Для режимов update и upsert требуется поле сравнения
-    const needsCompareField = importMode === 'update' || importMode === 'upsert'
+    // Для режима upsert требуется поле сравнения
+    const needsCompareField = importMode === 'upsert'
+
+    // Дополнительная проверка: если выбран режим обновления и поле сравнения - ID,
+    // то ID должно быть в маппинге
+    const isUsingIdForComparison = compareField === 'id'
+    const hasIdMapping = mappedFieldNames.includes('id')
 
     return (
       unmappedRequired.length === 0 &&
       fieldMappings.length > 0 &&
-      (!needsCompareField || compareField)
+      (!needsCompareField || compareField) &&
+      (!isUsingIdForComparison || hasIdMapping)
     )
   }
 
   const handleImport = () => {
-    if (!canProceed()) return
+    if (!canProceed()) {
+      return
+    }
 
     const settings: ImportSettings = {
       compareField: compareField || undefined,
@@ -120,6 +143,7 @@ const ImportConfiguration: React.FC<ImportConfigurationProps> = ({
         collectionFields={collectionFields}
         csvHeaders={tableData.headers}
         fieldMappings={fieldMappings}
+        importMode={importMode}
         onMappingChange={setFieldMappings}
       />
 
@@ -194,15 +218,23 @@ const ImportConfiguration: React.FC<ImportConfigurationProps> = ({
                   (f) => !mappedFieldNames.includes(f.name),
                 )
                 const needsCompareField = importMode === 'update' || importMode === 'upsert'
+                const isUsingIdForComparison = compareField === 'id'
+                const hasIdMapping = mappedFieldNames.includes('id')
 
                 if (fieldMappings.length === 0) {
                   return 'Сопоставьте хотя бы одно поле'
                 }
-                if (unmappedRequired.length > 0) {
+
+                // Для режима update не проверяем обязательные поля
+                if (importMode !== 'update' && unmappedRequired.length > 0) {
                   return `Сопоставьте обязательные поля: ${unmappedRequired.map((f) => f.label).join(', ')}`
                 }
+
                 if (needsCompareField && !compareField) {
                   return 'Выберите поле для сравнения записей'
+                }
+                if (isUsingIdForComparison && !hasIdMapping) {
+                  return 'Для сравнения по ID необходимо сопоставить поле ID с колонкой из файла'
                 }
                 return ''
               })()}

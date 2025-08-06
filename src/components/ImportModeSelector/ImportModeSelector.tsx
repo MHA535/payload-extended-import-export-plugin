@@ -1,9 +1,9 @@
 import React from 'react'
 
-import { ImportMode } from '../../types/import.js'
+import type { CollectionField, ImportMode } from '../../types/import.js'
 
 interface ImportModeSelectorProps {
-  collectionFields: Array<{ label: string; name: string }>
+  collectionFields: CollectionField[]
   compareField?: string
   onCompareFieldChange: (field: string) => void
   onModeChange: (mode: ImportMode) => void

@@ -44,7 +44,10 @@ export const extractCollectionFields = (
     // Определяем тип поля
     let typeDescription: string = field.type
     if (field.type === 'relationship' && 'relationTo' in field) {
-      typeDescription = `relationship (${field.relationTo})`
+      const relationTo = Array.isArray(field.relationTo)
+        ? field.relationTo.join(' | ')
+        : field.relationTo
+      typeDescription = `relationship (${relationTo})`
     } else if (field.type === 'select' && 'options' in field) {
       typeDescription = `select`
     } else if (field.type === 'upload' && 'relationTo' in field) {
@@ -76,6 +79,16 @@ export const extractCollectionFields = (
       field.fields.forEach((subField) => processField(subField, fieldName))
     }
   }
+
+  // Добавляем поле id, которое автоматически создается Payload
+  fields.unshift({
+    name: 'id',
+    type: 'text',
+    example: 'Уникальный идентификатор записи',
+    hasDefaultValue: true, // ID создается автоматически
+    label: 'ID',
+    required: false, // Не требуется при создании, но может использоваться для обновления
+  })
 
   // Обрабатываем все поля коллекции
   collectionConfig.fields.forEach((field) => processField(field))
@@ -130,7 +143,10 @@ const generateFieldExample = (field: Field): string => {
       return 'option1'
     case 'relationship':
       if ('relationTo' in field) {
-        return `ID записи из ${field.relationTo}`
+        const relationTo = Array.isArray(field.relationTo)
+          ? field.relationTo.join(' | ')
+          : field.relationTo
+        return `ID записи из ${relationTo}`
       }
       return 'relationship-id'
     case 'richText':
