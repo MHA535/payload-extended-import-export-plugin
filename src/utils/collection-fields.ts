@@ -43,15 +43,19 @@ export const extractCollectionFields = (
 
     // Определяем тип поля
     let typeDescription: string = field.type
+    let relationTo: string | undefined
+    let hasMany: boolean | undefined
+
     if (field.type === 'relationship' && 'relationTo' in field) {
-      const relationTo = Array.isArray(field.relationTo)
-        ? field.relationTo.join(' | ')
-        : field.relationTo
+      relationTo = Array.isArray(field.relationTo) ? field.relationTo.join(' | ') : field.relationTo
       typeDescription = `relationship (${relationTo})`
+      hasMany = 'hasMany' in field ? Boolean(field.hasMany) : false
     } else if (field.type === 'select' && 'options' in field) {
       typeDescription = `select`
     } else if (field.type === 'upload' && 'relationTo' in field) {
-      typeDescription = `upload (${field.relationTo})`
+      relationTo = field.relationTo
+      typeDescription = `upload (${relationTo})`
+      hasMany = 'hasMany' in field ? Boolean(field.hasMany) : false
     }
 
     // Определяем обязательность
@@ -65,14 +69,24 @@ export const extractCollectionFields = (
     // Генерируем пример значения
     const example = generateFieldExample(field)
 
-    fields.push({
+    const fieldData: CollectionField = {
       name: fieldName,
       type: typeDescription,
       example,
       hasDefaultValue,
       label,
       required,
-    })
+    }
+
+    // Добавляем дополнительную информацию для upload и relationship полей
+    if (relationTo) {
+      fieldData.relationTo = relationTo
+    }
+    if (hasMany !== undefined) {
+      fieldData.hasMany = hasMany
+    }
+
+    fields.push(fieldData)
 
     // Обрабатываем вложенные поля для group и blocks
     if (field.type === 'group' && 'fields' in field) {
@@ -179,6 +193,12 @@ const generateFieldExample = (field: Field): string => {
       return 'Длинное текстовое описание...'
 
     case 'upload':
+      if ('relationTo' in field) {
+        if ('hasMany' in field && field.hasMany) {
+          return 'https://example.com/image1.jpg,https://example.com/image2.jpg'
+        }
+        return 'https://example.com/image.jpg'
+      }
       return 'image.jpg'
 
     default:

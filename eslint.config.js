@@ -30,6 +30,7 @@ export default [
       'perfectionist/sort-objects': 'off',
       'perfectionist/sort-object-types': 'off',
       'perfectionist/sort-interfaces': 'off',
+      'perfectionist/sort-union-types': 'off',
     },
   },
   {

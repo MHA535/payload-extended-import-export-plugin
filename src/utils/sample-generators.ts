@@ -1,4 +1,4 @@
-import { CollectionField } from '../types/import.js'
+import type { CollectionField } from '../types/import.js'
 
 /**
  * Создает пример файла CSV на основе полей коллекции
@@ -85,6 +85,12 @@ const generateSampleValue = (field: CollectionField, index = 1): string => {
         return `SKU-${String(index).padStart(3, '0')}`
       }
       return field.example || `Значение ${index}`
+
+    case 'upload':
+      if (field.hasMany) {
+        return `https://picsum.photos/800/600?random=${index},https://picsum.photos/600/400?random=${index + 100}`
+      }
+      return `https://picsum.photos/800/600?random=${index}`
 
     default:
       return field.example || `Значение ${index}`
